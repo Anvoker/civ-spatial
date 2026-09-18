@@ -1,0 +1,18 @@
+[package]
+name = "civ-cli"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Command-line entry point for the CivSpatial eval."
+
+[[bin]]
+name = "civ"
+path = "src/main.rs"
+
+[dependencies]
+civ-core = { path = "../civ-core" }
+civ-eval = { path = "../civ-eval" }
+
+[features]
+# Enable the live-provider (OpenAI-compatible) path. Off by default; the offline stack needs none of it.
+remote = ["civ-eval/remote"]

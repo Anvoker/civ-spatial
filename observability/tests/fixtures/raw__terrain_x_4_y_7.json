@@ -1,0 +1,23 @@
+{
+  "mode": "static",
+  "model": "qwen3-35b-a3b",
+  "encoding": "raw",
+  "board": "starter.sav",
+  "item_id": "terrain:x=4,y=7",
+  "category": "terrain",
+  "tier": "T0",
+  "turns": [
+    {
+      "request": {
+        "cacheable_prefix": "You are a spatial reasoning assistant. Here is the full board in raw encoding:\n<... 40x40 tile grid ...>\n",
+        "tail": "Question: What terrain is at (4,7)? Answer with a single word."
+      },
+      "response": {
+        "text": "Answer: Ocean",
+        "usage": {"prompt_tokens": 1840, "completion_tokens": 3, "cached_tokens": 1792},
+        "latency_ms": 220
+      }
+    }
+  ],
+  "result": {"status": "correct", "expected": "Ocean", "got": "Ocean"}
+}

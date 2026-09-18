@@ -1,0 +1,11 @@
+# OTel GenAI trace adapter deps (pinned to the versions this was built/tested against).
+# The GenAI semantic conventions are experimental; these SDK versions ship semconv
+# constants for GenAI v1.36.0. See trace_to_otel.py SEMCONV_VERSION.
+opentelemetry-sdk==1.44.0
+opentelemetry-exporter-otlp-proto-http==1.44.0
+# opentelemetry-semantic-conventions is pulled in transitively by the SDK (==0.65b0);
+# the adapter pins the GenAI attribute strings itself, so no direct dependency is needed.
+
+# pytest is only needed to run the smoke test (tests/test_smoke.py). The test also runs
+# as a plain script: `python tests/test_smoke.py`.
+# pytest>=8

@@ -1,0 +1,35 @@
+[unit-strength] kept 12 instances, dropped 29 (near-tie / not decisive)
+[city-defense] kept 12 instances, dropped 8 (near-tie / not decisive)
+[best-site] kept 12 instances, dropped 1 (near-tie / not decisive)
+[nearest-owned] kept 12 instances (9 answered "none", 3 numeric)
+[settle-site] kept 12 instances, dropped 150 (near-tie / not decisive)
+[reachable-nearest] kept 12 instances (8 answered "none", 4 numeric)
+running 72 interactive trials against 'deepseek/deepseek-v4-flash' (max_turns=16, token_budget=200000, concurrency=4) at https://openrouter.ai/api/v1 ...
+  [interactive] 72 questions — warming system-prefix cache, then running at concurrency 4 ...
+  [warn] chat call failed: read body: An existing connection was forcibly closed by the remote host. (os error 10054)
+  [warn] chat call failed: read body: An existing connection was forcibly closed by the remote host. (os error 10054)
+  [warn] chat call failed: read body: An existing connection was forcibly closed by the remote host. (os error 10054)
+  [warn] chat call failed: read body: An existing connection was forcibly closed by the remote host. (os error 10054)
+  [warn] chat call failed: read body: An existing connection was forcibly closed by the remote host. (os error 10054)
+  [warn] chat call failed: read body: An existing connection was forcibly closed by the remote host. (os error 10054)
+  [warn] chat call failed: read body: An existing connection was forcibly closed by the remote host. (os error 10054)
+  [warn] chat call failed: read body: An existing connection was forcibly closed by the remote host. (os error 10054)
+  [warn] chat call failed: read body: An existing connection was forcibly closed by the remote host. (os error 10054)
+  [warn] chat call failed: read body: A connection attempt failed because the connected party did not properly respond after a period of time, or established connection failed because connected host has failed to respond. (os error 10060)
+  [warn] chat call failed: read body: A connection attempt failed because the connected party did not properly respond after a period of time, or established connection failed because connected host has failed to respond. (os error 10060)
+ran 72 trials (72 questions × 1 encodings) with model 'deepseek/deepseek-v4-flash' on testcontroller_T677.sav#fog(p4)
+wrote C:/Projects/CivSpatial/results-sweep-arm1-rep2.jsonl
+
+Board-block size by encoding (the cost axis, questions aside):
+
+Accuracy by encoding × category (correct/total):
+  category           interactive
+  best-site                10/12
+  nearest-owned             6/12
+  reachable-nearest            4/12
+  region-count             12/12
+  settle-site               7/12
+  terrain                  12/12
+
+Per-encoding totals:
+  interactive accuracy 51/72 = 0.708   mean prompt ~69610 tok   invalid 18

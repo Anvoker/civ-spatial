@@ -1,0 +1,19 @@
+[workspace]
+resolver = "2"
+members = ["civ-core", "civ-eval", "civ-cli", "civ-wasm"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+
+# A size-optimized profile used ONLY for the wasm build (`cargo build -p civ-wasm --profile
+# wasm-release --target wasm32-unknown-unknown`). Isolated from `release` so host CLI builds/tests
+# are unaffected; `panic = "abort"` is the wasm32 default but stated for clarity/smaller output.
+[profile.wasm-release]
+inherits = "release"
+opt-level = "z"
+lto = true
+codegen-units = 1
+strip = true
+panic = "abort"

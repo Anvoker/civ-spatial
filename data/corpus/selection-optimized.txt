@@ -1,0 +1,18 @@
+# Coverage-optimized 15-board corpus (select-corpus.py).
+# 15 distinct games; bands {'early': 3, 'mid': 3, 'late': 9}; sizes {'large': 5, 'medium': 5, 'small': 5}.
+# weakest discriminating kind: settle-site=10.
+corpus_medium_a9_s1337-T0060-Y-1050-auto.sav
+corpus_small_a6_s1337-T0040-Y-2050-auto.sav
+corpus_small_a9_s1337-T0040-Y-2050-auto.sav
+corpus_medium_a3_s1337-T0120-Y00380-auto.sav
+corpus_small_a6_s42-T0140-Y00780-auto.sav
+corpus_small_a9_s42-T0140-Y00780-auto.sav
+corpus_large_a3_s1337-T0200-Y01490-auto.sav
+corpus_large_a3_s42-T0220-Y01595-auto.sav
+corpus_large_a6_s1337-T0160-Y01090-auto.sav
+corpus_large_a6_s42-T0221-Y01600-final.sav
+corpus_large_a9_s1337-T0221-Y01600-final.sav
+corpus_medium_a3_s42-T0221-Y01600-final.sav
+corpus_medium_a6_s1337-T0221-Y01600-final.sav
+corpus_medium_a6_s42-T0220-Y01595-auto.sav
+corpus_small_a3_s1337-T0221-Y01600-final.sav

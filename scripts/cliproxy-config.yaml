@@ -1,0 +1,37 @@
+# CLIProxyAPI config for the CivSpatial subscription path.
+# Turns a Claude Max + ChatGPT/Codex subscription into one local OpenAI-compatible
+# endpoint the harness can hit exactly like OpenRouter or LM Studio.
+#
+# Setup + caveats: scripts/subscription-proxy-setup.md
+# Upstream:        https://github.com/router-for-me/CLIProxyAPI   (guides: https://help.router-for.me/)
+#
+# Run:   cli-proxy-api --config scripts/cliproxy-config.yaml
+# Login: cli-proxy-api --config scripts/cliproxy-config.yaml --claude-login
+#        cli-proxy-api --config scripts/cliproxy-config.yaml --codex-login
+
+# Localhost only — the proxy holds your OAuth tokens; never expose it on the LAN.
+host: "127.0.0.1"
+port: 8317
+
+# Where the OAuth tokens land (claude-<email>.json, codex-<email>.json). Gitignored territory —
+# these ARE your subscription credentials; keep them off any share/commit.
+auth-dir: "~/.cli-proxy-api"
+
+# Downstream client key: the token the HARNESS must present (civ run --api-key ...). This does NOT
+# touch your subscription — it just gates localhost access to the proxy. The scripts default to
+# this literal; override in .env with CLIPROXY_API_KEY if you prefer.
+api-keys:
+  - "civspatial-local"
+
+# The harness already persists full LLM I/O to traces/ on every run, so the proxy's own request
+# logging is redundant (and verbose). Leave it off; flip debug:true only when diagnosing the proxy.
+debug: false
+logging-to-file: false
+usage-statistics-enabled: false
+
+# Retry 403/408/5xx a few times — subscription backends throttle more than a paid API.
+request-retry: 3
+
+# Management/control-panel API stays local and locked (we don't use it).
+remote-management:
+  allow-remote: false

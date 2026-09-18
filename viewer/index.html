@@ -1,0 +1,376 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>CivSpatial Replay Viewer</title>
+<style>
+  :root {
+    --bg: #f6f7f9; --panel: #ffffff; --panel-2: #eef1f5; --border: #d6dae1;
+    --text: #1c2230; --muted: #5c6675; --accent: #2f6df6;
+    --pass: #1a9e5e; --fail: #d64545; --invalid: #b8860b;
+    --ref: #ffb020; --cand: #22b8cf; --fetch: #7c4dff;
+    --shadow: 0 1px 3px rgba(0,0,0,.08);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #14171c; --panel: #1c2027; --panel-2: #232833; --border: #333a45;
+      --text: #e6e9ef; --muted: #9aa4b2; --accent: #5b8cff;
+      --pass: #35c281; --fail: #ff6b6b; --invalid: #e0b64a;
+      --ref: #ffc451; --cand: #38d6e8; --fetch: #a481ff;
+      --shadow: 0 1px 3px rgba(0,0,0,.4);
+    }
+  }
+  :root[data-theme="light"] {
+    --bg: #f6f7f9; --panel: #ffffff; --panel-2: #eef1f5; --border: #d6dae1;
+    --text: #1c2230; --muted: #5c6675; --accent: #2f6df6;
+    --pass: #1a9e5e; --fail: #d64545; --invalid: #b8860b;
+    --ref: #ffb020; --cand: #22b8cf; --fetch: #7c4dff; --shadow: 0 1px 3px rgba(0,0,0,.08);
+  }
+  :root[data-theme="dark"] {
+    --bg: #14171c; --panel: #1c2027; --panel-2: #232833; --border: #333a45;
+    --text: #e6e9ef; --muted: #9aa4b2; --accent: #5b8cff;
+    --pass: #35c281; --fail: #ff6b6b; --invalid: #e0b64a;
+    --ref: #ffc451; --cand: #38d6e8; --fetch: #a481ff; --shadow: 0 1px 3px rgba(0,0,0,.4);
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 14px/1.45 system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+         background: var(--bg); color: var(--text); }
+  header { display: flex; align-items: center; gap: 14px; padding: 10px 16px;
+           background: var(--panel); border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+  header h1 { font-size: 16px; margin: 0; font-weight: 650; }
+  header .meta { color: var(--muted); font-size: 12px; }
+  header .spacer { flex: 1; }
+  .btn { background: var(--panel-2); color: var(--text); border: 1px solid var(--border);
+         border-radius: 7px; padding: 6px 11px; cursor: pointer; font-size: 13px; }
+  .btn:hover { border-color: var(--accent); }
+  .btn:disabled { opacity: .45; cursor: default; }
+  label.filelabel { cursor: pointer; }
+  /* Narrower board column, wider Answer column: the board still fills (and zoom/pans within) its
+     column, while the Answer panel gets the freed width for the answer + full-prompt panel. */
+  main { display: grid; grid-template-columns: 280px minmax(0, 1fr) 460px; gap: 12px; padding: 12px;
+         align-items: start; }
+  #center { min-width: 0; }
+  /* The right column is one tabbed window (Answer | Tools) — see .wintabs below. */
+  #right { min-width: 0; }
+  @media (max-width: 1200px) { main { grid-template-columns: 260px minmax(0, 1fr) 380px; } }
+  @media (max-width: 1000px) { main { grid-template-columns: 1fr; } }
+  .panel { background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
+           box-shadow: var(--shadow); }
+  .panel h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted);
+              margin: 0; padding: 10px 12px; border-bottom: 1px solid var(--border); }
+  #filters { padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; }
+  #filters select { width: 100%; background: var(--panel-2); color: var(--text);
+                    border: 1px solid var(--border); border-radius: 6px; padding: 5px; }
+  #qlist { max-height: 62vh; overflow-y: auto; }
+  /* Tool-call & cross-turn analytics — per-tool bar lists rendered inside a .statblock in the
+     Aggregated Stats section (per-side in Compare mode). Scroll when the full tool roster is long. */
+  .analytics-list { display: flex; flex-direction: column; gap: 3px; margin-top: 1px;
+                    max-height: 240px; overflow-y: auto; }
+  .abar { display: grid; grid-template-columns: 112px 1fr auto; align-items: center; gap: 7px; }
+  .abar .an { font-size: 11px; font-family: ui-monospace, Menlo, Consolas, monospace; color: var(--text);
+              overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .abar .atrack { height: 8px; background: var(--panel-2); border: 1px solid var(--border); border-radius: 5px; overflow: hidden; }
+  .abar .afill { display: block; height: 100%; background: var(--accent); }
+  .abar .ac { font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; min-width: 34px; text-align: right; }
+  /* Per-question metrics (answer panel) */
+  .metrics { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; }
+  .metric { border: 1px solid var(--border); border-radius: 8px; padding: 6px 9px; background: var(--panel-2); }
+  .metric .ml { font-size: 10px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+  .metric .mv { font-size: 16px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .metric .ms { font-size: 11px; color: var(--muted); }
+  /* Center header: full question id + copy button (now a div inside the Board tab pane, not an h2) */
+  #centerHead { display: flex; align-items: center; gap: 8px; text-transform: none;
+                padding: 8px 12px; border-bottom: 1px solid var(--border); }
+  #centerTitle { flex: 1; min-width: 0; font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px;
+                 letter-spacing: 0; color: var(--text); text-transform: none; overflow-wrap: anywhere; word-break: break-all; }
+  #copyIdBtn.copybtn { padding: 3px 9px; font-size: 11px; flex: none; }
+  .qgroup-h { position: sticky; top: 0; background: var(--panel-2); color: var(--muted);
+              font-size: 11px; font-weight: 600; padding: 4px 12px; border-bottom: 1px solid var(--border); }
+  .qitem { display: flex; align-items: center; gap: 8px; padding: 6px 12px; cursor: pointer;
+           border-bottom: 1px solid var(--border); }
+  .qitem:hover { background: var(--panel-2); }
+  .qitem.active { background: color-mix(in srgb, var(--accent) 16%, transparent); }
+  .qitem .qid { flex: 1; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .badge { font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 999px; color: #fff; }
+  .badge.correct { background: var(--pass); }
+  .badge.wrong { background: var(--fail); }
+  .badge.invalid { background: var(--invalid); }
+  .boardbar { display: flex; align-items: center; gap: 6px; padding: 8px 12px 0; flex-wrap: wrap; }
+  .boardbar .btn { padding: 4px 9px; font-size: 12px; }
+  .boardbar .hint { color: var(--muted); font-size: 11px; margin-left: auto; }
+  .canvaswrap { padding: 12px; }
+  canvas { image-rendering: pixelated; background: var(--panel-2); border-radius: 6px;
+           width: 100%; display: block; cursor: grab; touch-action: none; }
+  #hover { color: var(--muted); font-size: 12px; min-height: 16px; margin-top: 6px; font-variant-numeric: tabular-nums; }
+  #legend { display: flex; flex-wrap: wrap; gap: 8px 14px; padding: 10px 12px; border-top: 1px solid var(--border);
+            font-size: 11px; color: var(--muted); }
+  #legend .sw { display: inline-flex; align-items: center; gap: 5px; }
+  #legend .chip { width: 12px; height: 12px; border-radius: 3px; border: 1px solid rgba(128,128,128,.4); }
+  #ownerLegend { display: flex; flex-wrap: wrap; gap: 6px 12px; padding: 8px 12px; border-top: 1px solid var(--border);
+                 font-size: 11px; color: var(--muted); }
+  #ownerLegend .sw { display: inline-flex; align-items: center; gap: 5px; }
+  #ownerLegend .chip { width: 12px; height: 12px; border-radius: 3px; border: 1px solid rgba(0,0,0,.55); }
+  #ownerLegend .owner.you { color: var(--text); font-weight: 700;
+                 background: color-mix(in srgb, var(--accent) 18%, transparent);
+                 border-radius: 999px; padding: 1px 8px; }
+  .qtext { padding: 10px 12px; border-top: 1px solid var(--border); font-size: 13px; white-space: pre-wrap;
+           max-height: 160px; overflow-y: auto; }
+  #answer { padding: 12px; display: flex; flex-direction: column; gap: 9px; }
+  .ansrow { display: flex; align-items: center; gap: 8px; }
+  .ansrow .k { color: var(--muted); width: 62px; font-size: 12px; }
+  .ansrow .v { font-weight: 600; word-break: break-word; }
+  .pill { font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 999px; color: #fff; align-self: flex-start; }
+  .pill.correct { background: var(--pass); } .pill.wrong { background: var(--fail); } .pill.invalid { background: var(--invalid); }
+  .answercmp { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .bigans { border: 1px solid var(--border); border-radius: 9px; padding: 8px 10px; background: var(--panel-2);
+            border-left-width: 4px; }
+  .bigans .l { font-size: 10px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin-bottom: 2px; }
+  .bigans .v { font-size: 17px; font-weight: 700; word-break: break-word; }
+  .bigans.correct { border-left-color: var(--pass); }
+  .bigans.wrong { border-left-color: var(--fail); }
+  .bigans.invalid { border-left-color: var(--invalid); }
+  .bigans.muted .v { color: var(--muted); font-style: italic; font-weight: 600; font-size: 14px; }
+  .anslabel { font-size: 10px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin-top: 2px; }
+  .rawanswer { background: var(--panel-2); border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px;
+               font-size: 12.5px; max-height: 220px; overflow-y: auto; white-space: pre-wrap; word-break: break-word;
+               font-family: ui-monospace, Menlo, Consolas, monospace; }
+  .reasoning { background: var(--panel-2); border-radius: 8px; padding: 8px 10px; font-size: 12px;
+               color: var(--muted); max-height: 200px; overflow-y: auto; white-space: pre-wrap; }
+  details.fullprompt { border: 1px solid var(--border); border-radius: 8px; background: var(--panel-2); }
+  details.fullprompt > summary { cursor: pointer; padding: 7px 10px; font-size: 11px; font-weight: 700;
+               text-transform: uppercase; letter-spacing: .04em; color: var(--muted); user-select: none; }
+  details.fullprompt[open] > summary { border-bottom: 1px solid var(--border); }
+  .fullpromptbody { padding: 8px 10px; font-size: 12px; max-height: 340px; overflow: auto;
+               white-space: pre-wrap; word-break: break-word;
+               font-family: ui-monospace, Menlo, Consolas, monospace; }
+  #stepper { padding: 12px; border-top: 1px solid var(--border); display: none; flex-direction: column; gap: 8px; }
+  #stepper.on { display: flex; }
+  #stepControls { display: flex; align-items: center; gap: 8px; }
+  #stepControls .turnlbl { color: var(--muted); font-size: 12px; margin-left: auto; }
+  .toolcall { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 11px;
+              background: var(--panel-2); border-radius: 6px; padding: 5px 8px; margin-top: 4px;
+              word-break: break-all; }
+  .toolcall .fetch { color: var(--fetch); font-weight: 700; }
+  .turntext { font-size: 12px; white-space: pre-wrap; max-height: 140px; overflow-y: auto; }
+  /* Tools playground panel */
+  #toolsBody { padding: 12px; display: flex; flex-direction: column; gap: 9px; }
+  #toolsBody select, #toolsBody input { background: var(--panel-2); color: var(--text);
+                    border: 1px solid var(--border); border-radius: 6px; padding: 5px 6px; font-size: 13px; }
+  #toolSelect { width: 100%; }
+  .tooldesc { font-size: 12px; color: var(--muted); }
+  .toolparams { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px 8px; }
+  .toolparam { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  .toolparam label { font-size: 10px; text-transform: uppercase; letter-spacing: .03em; color: var(--muted); }
+  .toolparam label .opt { text-transform: none; letter-spacing: 0; opacity: .7; }
+  .toolparam input { width: 100%; font-family: ui-monospace, Menlo, Consolas, monospace; }
+  .toolparam input.pickable { cursor: crosshair; }
+  .toolparam input:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+  .toolrow { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .toolrow .hint { color: var(--muted); font-size: 11px; }
+  #toolUnits { display: flex; flex-wrap: wrap; gap: 5px; }
+  #toolUnits .btn { padding: 3px 7px; font-size: 11px; }
+  .toolout { background: var(--panel-2); border: 1px solid var(--border); border-radius: 8px;
+             padding: 9px 10px; margin: 0; font-size: 12.5px; white-space: pre-wrap; word-break: break-word;
+             max-height: 220px; overflow: auto; font-family: ui-monospace, Menlo, Consolas, monospace;
+             min-height: 20px; }
+  .toolout.err { color: var(--fail); }
+  #toolLog { display: flex; flex-direction: column; gap: 5px; max-height: 220px; overflow-y: auto; }
+  .toollog-item { border: 1px solid var(--border); border-radius: 7px; padding: 6px 8px; background: var(--panel); }
+  .toollog-call { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 11px; color: var(--muted);
+                  word-break: break-all; }
+  .toollog-out { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; white-space: pre-wrap;
+                 word-break: break-word; margin-top: 2px; }
+  .toollog-out.err { color: var(--fail); }
+  .empty { padding: 24px; color: var(--muted); text-align: center; }
+  /* Previous/next QUESTION nav — beneath the Questions list, co-located with the list it pages. */
+  .qnav { display: flex; align-items: center; gap: 8px; justify-content: center;
+          padding: 10px 12px; border-top: 1px solid var(--border); }
+  .qnav .btn { flex: 1; padding: 6px 8px; font-size: 12px; }
+
+  /* ---- Tabbed windows (Board|Analytics, Answer|Tools). Shared visual language: a strip of tabs sits
+     at the top of a panel; the active tab reads "attached" to the pane below. ---- */
+  .wintabs { display: flex; gap: 3px; padding: 6px 8px 0; background: var(--panel);
+             border-bottom: 1px solid var(--border); border-radius: 10px 10px 0 0; }
+  .wintab { background: transparent; border: 1px solid transparent; border-bottom: none;
+            border-radius: 8px 8px 0 0; padding: 7px 13px; font-size: 11px; font-weight: 700;
+            text-transform: uppercase; letter-spacing: .04em; color: var(--muted); cursor: pointer; }
+  .wintab:hover { color: var(--text); }
+  .wintab.active { color: var(--text); background: var(--panel-2); border-color: var(--border); }
+
+  /* Generic collapsible section — the same treatment the full prompt uses, reused for the question,
+     the model's answer text and the reasoning (item 2). */
+  details.fullprompt, details.collapse { border: 1px solid var(--border); border-radius: 8px; background: var(--panel-2); }
+  details.fullprompt > summary, details.collapse > summary { cursor: pointer; padding: 7px 10px; font-size: 11px;
+               font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); user-select: none; }
+  details.fullprompt[open] > summary, details.collapse[open] > summary { border-bottom: 1px solid var(--border); }
+  .collapsebody { padding: 8px 10px; font-size: 13px; max-height: 240px; overflow: auto;
+                  white-space: pre-wrap; word-break: break-word; }
+  .collapsebody.mono { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; }
+  .collapsebody.muted { color: var(--muted); }
+
+  /* ---- Stats / Compare view (item 7) ---- */
+  .statsview { padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; }
+  .statsbar { display: flex; align-items: center; gap: 10px; padding: 7px 12px; flex-wrap: wrap; }
+  .statsbar .spacer { flex: 1; }
+  .statsbar .hint { color: var(--muted); font-size: 12px; }
+  .statsgrid { display: grid; grid-template-columns: 1fr; gap: 10px; }
+  .statsgrid.compare { grid-template-columns: 1fr 1fr; }
+  @media (max-width: 900px) { .statsgrid.compare { grid-template-columns: 1fr; } }
+  /* Each side is its own query container so the 2->1 column collapse keys off the PANEL's own width,
+     not the viewport — essential in Compare mode where each side is ~half the page. */
+  .statspanel { padding: 0; container-type: inline-size; container-name: statspanel; }
+  .statsfilters { display: flex; gap: 8px; padding: 8px 10px; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+  .statsfilters select { flex: 1; min-width: 110px; background: var(--panel-2); color: var(--text);
+                         border: 1px solid var(--border); border-radius: 6px; padding: 5px; }
+  /* Stat blocks sit in a fixed TWO-column grid so they consume horizontal (available) room instead of
+     stacking vertically. align-items:stretch (grid default) makes the two blocks in each row equal
+     height. The count/empty rows span both columns; the analytics pair (cross-turn + tool-call totals)
+     is forced onto its own new row via .analytics-start so the odd 5th aggregate block never pairs with
+     an analytics block. Collapses to 1 column only when its own container (the .statspanel) is < 600px
+     wide — a container query, so Compare mode keys off each half-width side, not the viewport. */
+  .statsresults { padding: 10px; display: grid; align-items: stretch;
+                  grid-template-columns: 1fr 1fr; gap: 8px; }
+  .statsresults > .statscount, .statsresults > .statempty { grid-column: 1 / -1; }
+  .statsresults > .analytics-start { grid-column-start: 1; }
+  @container statspanel (max-width: 600px) { .statsresults { grid-template-columns: 1fr; } }
+  .statscount { font-size: 12px; color: var(--muted); }
+  .statscount b { color: var(--text); font-variant-numeric: tabular-nums; }
+  .statempty { color: var(--muted); font-size: 12px; }
+  .statssub { font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); font-weight: 700; }
+  .statblock { border: 1px solid var(--border); border-radius: 9px; background: var(--panel-2);
+               padding: 7px 9px; display: flex; flex-direction: column; gap: 5px; }
+  .statblock .three { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; }
+  /* Compact the stat tiles only inside stat blocks — the Answer panel's .metric stays untouched. */
+  .statblock .metric { padding: 4px 7px; }
+  .statblock .metric .mv { font-size: 14px; }
+  .statquant { font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; line-height: 1.35; }
+  .acc-big { font-size: 22px; font-weight: 800; font-variant-numeric: tabular-nums; line-height: 1.1; }
+  /* Small distribution histogram (the chosen distribution descriptor) — DOM bars, theme-aware. */
+  .hist { display: flex; align-items: flex-end; gap: 2px; height: 32px; }
+  .hist .bin { flex: 1; background: var(--accent); border-radius: 2px 2px 0 0; min-height: 1px; opacity: .85; }
+  .hist .bin:hover { opacity: 1; }
+</style>
+</head>
+<body>
+<header>
+  <h1>CivSpatial Replay</h1>
+  <span class="meta" id="metaLine"></span>
+  <span class="spacer"></span>
+  <label class="btn filelabel">Load export JSON
+    <input id="fileInput" type="file" accept="application/json,.json" hidden />
+  </label>
+  <button class="btn" id="themeBtn" title="Toggle light/dark">Theme</button>
+</header>
+
+<main id="replayView">
+  <section class="panel" id="left">
+    <h2>Questions</h2>
+    <div id="filters">
+      <select id="fCategory"><option value="">All categories</option></select>
+      <select id="fEncoding"><option value="">All encodings</option></select>
+      <select id="fStatus">
+        <option value="">All results</option>
+        <option value="correct">Correct only</option>
+        <option value="wrong">Wrong only</option>
+        <option value="invalid">Invalid only</option>
+      </select>
+    </div>
+    <div id="qlist"></div>
+    <!-- Previous / next QUESTION nav — co-located beneath the list it pages through. -->
+    <nav class="qnav">
+      <button class="btn" id="prevBtn">&#9664; Prev</button>
+      <button class="btn" id="nextBtn">Next &#9654;</button>
+    </nav>
+  </section>
+
+  <!-- Center window: the board. (Tool-call analytics + cross-turn repeat analytics moved to the
+       Aggregated Stats section below, where they render per-side in Compare mode.) -->
+  <section class="panel" id="center">
+    <div id="boardPane">
+      <div id="centerHead">
+        <span id="centerTitle">Board</span>
+        <button class="btn copybtn" id="copyIdBtn" title="Copy a unique identifier for this question" hidden>Copy id</button>
+      </div>
+      <div class="boardbar">
+        <button class="btn" id="zoomOut" title="Zoom out">&#8722;</button>
+        <button class="btn" id="zoomIn" title="Zoom in">&#43;</button>
+        <button class="btn" id="fitBtn" title="Fit board to view">Fit</button>
+        <button class="btn" id="spriteBtn" title="Toggle Freeciv trident sprites / flat color">Sprites: on</button>
+        <button class="btn" id="fogBtn" title="Toggle between what the model saw (fogged) and full ground truth">Fog: on</button>
+        <span class="hint">scroll = zoom · drag = pan · hover = tile</span>
+      </div>
+      <div class="canvaswrap">
+        <canvas id="board" width="900" height="520"></canvas>
+        <div id="hover"></div>
+      </div>
+      <!-- Faction colors FIRST, then the referent/candidate/fetch markers, then terrain (item 3). -->
+      <div id="ownerLegend" title="Owner colors (cities, units, territory rings)"></div>
+      <div id="legend"></div>
+    </div>
+  </section>
+
+  <!-- Right window: tabbed Answer | Tools (item 5) — run tools while looking at the board. -->
+  <section class="panel" id="right">
+    <div class="wintabs" id="rightTabs">
+      <button class="wintab active" data-tab="answer">Answer</button>
+      <button class="wintab" data-tab="tools">Tools</button>
+    </div>
+    <div class="wintab-pane" data-pane="answer" id="answerPane">
+      <div id="answer"><div class="empty">Select a question.</div></div>
+      <div id="stepper">
+        <div id="stepControls">
+          <button class="btn" id="stepPrev">&#9664; Turn</button>
+          <button class="btn" id="stepNext">Turn &#9654;</button>
+          <span class="turnlbl" id="turnLbl"></span>
+        </div>
+        <div class="turntext" id="turnText"></div>
+        <div id="turnCalls"></div>
+      </div>
+    </div>
+    <!-- Board-scoped tool playground: run ANY of the eval's model-facing tools yourself, against the
+         board currently displayed (respecting the Fog toggle), via the real Rust dispatch in wasm. -->
+    <div class="wintab-pane" data-pane="tools" id="toolsPane" hidden>
+      <div id="toolsBody">
+        <div class="toolrow"><select id="toolSelect"></select></div>
+        <div id="toolDesc" class="tooldesc"></div>
+        <div id="toolParams" class="toolparams"></div>
+        <div id="toolUnits"></div>
+        <div class="toolrow">
+          <button class="btn" id="toolRun">Run</button>
+          <span id="toolPickHint" class="hint"></span>
+        </div>
+        <pre id="toolOut" class="toolout"></pre>
+        <div id="toolLog"></div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<!-- Stats / Compare view: aggregate accuracy, latency and token usage over a filtered subset, with an
+     optional side-by-side compare mode (item 7). Built dynamically in main.ts (see renderStats). It now
+     renders permanently, stacked below the Replay layout (the old Replay/Stats view tabs were removed). -->
+<section id="statsView" class="statsview">
+  <div class="panel">
+    <div class="statsbar">
+      <strong>Aggregated stats</strong>
+      <span class="hint">Combine filters to aggregate accuracy, latency and token usage over the matching subset.</span>
+      <span class="spacer"></span>
+      <button class="btn" id="statsCompareBtn">Compare: off</button>
+    </div>
+  </div>
+  <div id="statsGrid" class="statsgrid"></div>
+</section>
+
+<!-- Freeciv `trident` tileset, parsed into our own sprite index + inlined sheets (optional; regenerate
+     via scripts/build-tileset.mjs). When absent the viewer falls back to flat-color terrain. -->
+<script src="src/tileset-data.js"></script>
+<!-- Bundled sample data sets window.__CIVSPATIAL_SAMPLE__ (optional; regenerate via scripts/build-sample.mjs). -->
+<script src="src/sample-data.js"></script>
+<!-- Base64-inlined wasm (civ_eval::run_tool) for the tool playground; sets window.__CIVSPATIAL_WASM__
+     (regenerate via scripts/build-wasm.mjs). Inlined so it instantiates from file:// with no fetch. -->
+<script src="src/wasm-data.js"></script>
+<!-- Compiled viewer (tsc: npm run build). -->
+<script src="dist/viewer.js"></script>
+</body>
+</html>

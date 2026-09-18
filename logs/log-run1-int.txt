@@ -1,0 +1,26 @@
+[unit-strength] kept 8 instances, dropped 17 (near-tie / not decisive)
+[city-defense] kept 8 instances, dropped 6 (near-tie / not decisive)
+[best-site] kept 8 instances, dropped 0 (near-tie / not decisive)
+[nearest-owned] kept 8 instances (7 answered "none", 1 numeric)
+[settle-site] kept 8 instances, dropped 62 (near-tie / not decisive)
+[reachable-nearest] kept 8 instances (5 answered "none", 3 numeric)
+[t3-threat] kept 8 instances, dropped 4 (near-tie / not decisive)
+tracing full LLM I/O to traces\results-thinkon-gemini-int-1785486761310 (one JSON per question; --no-trace to disable)
+running 48 interactive trials against 'google/gemini-2.5-flash' (max_turns=16, token_budget=200000, concurrency=4) at https://openrouter.ai/api/v1 ...
+  [interactive] 48 questions — warming system-prefix cache, then running at concurrency 4 ...
+ran 48 trials (48 questions × 1 encodings) with model 'google/gemini-2.5-flash' on testcontroller_T677.sav#fog(p4)
+wrote results-thinkon-gemini-int.jsonl
+
+Board-block size by encoding (the cost axis, questions aside):
+
+Accuracy by encoding × category (correct/total):
+  category           interactive
+  best-site                  8/8
+  nearest-owned              4/8
+  reachable-nearest             2/8
+  region-count               8/8
+  settle-site                5/8
+  terrain                    8/8
+
+Per-encoding totals:
+  interactive accuracy 35/48 = 0.729   mean prompt ~17713 tok   invalid 6

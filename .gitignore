@@ -1,0 +1,57 @@
+# Claude Code working dir (agent git worktrees live here — never commit)
+.claude/
+
+# Rust
+/target/
+/target-exp/
+**/*.rs.bk
+Cargo.lock.tmp
+
+# Local run logs / scratch
+*.log
+
+# Secrets / config
+.env
+*.local
+models.toml
+
+# Eval outputs
+/results/
+/runs/
+*.jsonl
+!data/**/*.jsonl
+
+# LLM trajectory traces (full prompt/tool/completion capture — never commit)
+/traces/
+
+# Multi-board corpus: commit the .serv scripts + sweep.json (the reproducible spec)
+# and selection-optimized.txt (the pre-registered corpus), NOT the multi-MB self-play
+# save blobs or the manifest/yield characterizations regenerated from them.
+/data/corpus/saves/
+/data/corpus/manifest*.json
+/data/corpus/manifest*.md
+/data/corpus/yield*.json
+/data/corpus/yield*.md
+
+# Viewer (frontend) — node deps only; committed: index.html, src/, dist/viewer.js, samples/
+viewer/node_modules/
+# Local, multi-MB viewer export blobs (working artifacts, not repo content). The committed
+# viewer default is the bundled viewer/src/sample-data.js, regenerated from a run post-experiment.
+viewer/samples/latest/
+/*-export.json
+
+# Python tooling (observability/ subdir)
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Editor / OS
+.DS_Store
+.idea/
+.vscode/
+
+# CLIProxyAPI vendored control-panel asset (subscription path) — not part of this repo
+scripts/static/
+
+# Off-topic side-project notes (model tuning) — kept locally, not published
+llm-tuning-handoff.md

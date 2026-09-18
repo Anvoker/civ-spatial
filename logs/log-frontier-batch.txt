@@ -1,0 +1,30 @@
+=== running kind settle-site ===
+
+Per-encoding totals:
+  raw        accuracy 5/8 = 0.625   mean prompt ~6273 tok   invalid 0
+sleeping 60s to respect new-account rpm...
+=== running kind best-site ===
+
+Per-encoding totals:
+  raw        accuracy 7/8 = 0.875   mean prompt ~5033 tok   invalid 0
+sleeping 60s to respect new-account rpm...
+=== running kind region-count ===
+
+Per-encoding totals:
+  raw        accuracy 6/8 = 0.750   mean prompt ~4982 tok   invalid 0
+sleeping 60s to respect new-account rpm...
+=== running kind terrain ===
+
+Per-encoding totals:
+  raw        accuracy 8/8 = 1.000   mean prompt ~4966 tok   invalid 0
+sleeping 60s to respect new-account rpm...
+=== running kind nearest-owned ===
+
+Per-encoding totals:
+  raw        accuracy 7/8 = 0.875   mean prompt ~5076 tok   invalid 0
+sleeping 60s to respect new-account rpm...
+=== running kind reachable-nearest ===
+
+Per-encoding totals:
+  raw        accuracy 4/8 = 0.500   mean prompt ~5050 tok   invalid 0
+=== BATCH COMPLETE ===

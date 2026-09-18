@@ -1,0 +1,15 @@
+[package]
+name = "civ-wasm"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "wasm32 shim exposing civ_eval::run_tool to the offline replay viewer's tool playground."
+
+[lib]
+# A cdylib so `cargo build --target wasm32-unknown-unknown` emits a standalone .wasm the viewer inlines.
+# Also builds cleanly for the host (a .dll/.so) so plain `cargo build --workspace` stays green.
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+civ-core = { path = "../civ-core" }
+civ-eval = { path = "../civ-eval" }

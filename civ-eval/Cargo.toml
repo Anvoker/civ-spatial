@@ -1,0 +1,17 @@
+[package]
+name = "civ-eval"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Encoders, questions, solvers, scorer, models, and the eval runner."
+
+[dependencies]
+civ-core = { path = "../civ-core" }
+# TLS-capable blocking HTTP client for the *cloud* provider path (localhost stays http).
+# Pure-Rust TLS (rustls) so there's no OpenSSL/system dependency on Windows. Behind `remote`.
+ureq = { version = "2", optional = true }
+
+[features]
+default = []
+# The live-provider path (OpenAI-compatible: local Qwen over http OR a cloud model over https).
+remote = ["dep:ureq"]

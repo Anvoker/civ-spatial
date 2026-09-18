@@ -1,0 +1,38 @@
+[unit-strength] kept 12 instances, dropped 29 (near-tie / not decisive)
+[city-defense] kept 12 instances, dropped 8 (near-tie / not decisive)
+[best-site] kept 12 instances, dropped 1 (near-tie / not decisive)
+[nearest-owned] kept 12 instances (9 answered "none", 3 numeric)
+[settle-site] kept 12 instances, dropped 150 (near-tie / not decisive)
+[reachable-nearest] kept 12 instances (8 answered "none", 4 numeric)
+running 144 static trials against 'deepseek/deepseek-v4-flash' (think=off, concurrency=4) at https://openrouter.ai/api/v1 ...
+  [raw] 72 trials — warming board-prefix cache, then running at concurrency 4 ...
+    ... 25/144 trials done
+    ... 50/144 trials done
+  [warn] model call failed: read body: A connection attempt failed because the connected party did not properly respond after a period of time, or established connection failed because connected host has failed to respond. (os error 10060)
+  [hierarchical] 72 trials — warming board-prefix cache, then running at concurrency 4 ...
+    ... 75/144 trials done
+    ... 100/144 trials done
+    ... 125/144 trials done
+    ... 144/144 trials done
+running 72 interactive trials against 'deepseek/deepseek-v4-flash' (max_turns=16, token_budget=200000, concurrency=4) at https://openrouter.ai/api/v1 ...
+  [interactive] 72 questions — warming system-prefix cache, then running at concurrency 4 ...
+ran 216 trials (72 questions × 3 encodings) with model 'deepseek/deepseek-v4-flash' on testcontroller_T677.sav#fog(p4)
+wrote C:/Projects/CivSpatial/results-sweep-full-rep3.jsonl
+
+Board-block size by encoding (the cost axis, questions aside):
+  hierarchical ~5526 tokens
+  raw        ~3350 tokens
+
+Accuracy by encoding × category (correct/total):
+  category          hierarchical     interactive             raw
+  best-site                10/12           12/12           10/12
+  nearest-owned            11/12           10/12           11/12
+  reachable-nearest            9/12            8/12            9/12
+  region-count             11/12           11/12           10/12
+  settle-site               9/12           11/12            9/12
+  terrain                  12/12           12/12           12/12
+
+Per-encoding totals:
+  hierarchical accuracy 62/72 = 0.861   mean prompt ~9019 tok   invalid 0
+  interactive accuracy 64/72 = 0.889   mean prompt ~72981 tok   invalid 2
+  raw        accuracy 61/72 = 0.847   mean prompt ~5400 tok   invalid 1

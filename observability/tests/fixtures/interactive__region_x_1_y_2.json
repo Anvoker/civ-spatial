@@ -1,0 +1,67 @@
+{
+  "mode": "interactive",
+  "model": "qwen3-35b-a3b",
+  "encoding": "interactive",
+  "board": "starter.sav",
+  "item_id": "region:x=1,y=2",
+  "category": "region_summary",
+  "tier": "T2",
+  "turns": [
+    {
+      "request": {
+        "messages": [
+          {"role": "system", "content": "You are a spatial reasoning assistant for a Civ-like map. Use tools to inspect the board."},
+          {"role": "user", "content": "Summarize the region around (1,2). How many cities does the strongest owner control?"}
+        ],
+        "tools": ["region_summary", "scan_grid", "get_tile"]
+      },
+      "response": {
+        "text": null,
+        "tool_calls": [
+          {"id": "call_a1", "name": "region_summary", "args": "{\"x\":1,\"y\":2,\"radius\":3}"}
+        ],
+        "usage": {"prompt_tokens": 512, "completion_tokens": 24, "cached_tokens": 448},
+        "latency_ms": 640
+      }
+    },
+    {
+      "request": {
+        "messages": [
+          {"role": "system", "content": "You are a spatial reasoning assistant for a Civ-like map. Use tools to inspect the board."},
+          {"role": "user", "content": "Summarize the region around (1,2). How many cities does the strongest owner control?"},
+          {"role": "assistant", "content": "", "tool_calls": [{"id": "call_a1", "name": "region_summary", "args": "{\"x\":1,\"y\":2,\"radius\":3}"}]},
+          {"role": "tool", "content": "Region (1,2) r=3: owners=[Rome:3 cities, Egypt:1 city]; resources={wheat:2, iron:1}; units=[Rome:2 warriors, Egypt:1 settler].", "tool_call_id": "call_a1"}
+        ],
+        "tools": ["region_summary", "scan_grid", "get_tile"]
+      },
+      "response": {
+        "text": null,
+        "tool_calls": [
+          {"id": "call_b2", "name": "get_tile", "args": "{\"x\":1,\"y\":2}"}
+        ],
+        "usage": {"prompt_tokens": 690, "completion_tokens": 18, "cached_tokens": 512},
+        "latency_ms": 410
+      }
+    },
+    {
+      "request": {
+        "messages": [
+          {"role": "system", "content": "You are a spatial reasoning assistant for a Civ-like map. Use tools to inspect the board."},
+          {"role": "user", "content": "Summarize the region around (1,2). How many cities does the strongest owner control?"},
+          {"role": "assistant", "content": "", "tool_calls": [{"id": "call_a1", "name": "region_summary", "args": "{\"x\":1,\"y\":2,\"radius\":3}"}]},
+          {"role": "tool", "content": "Region (1,2) r=3: owners=[Rome:3 cities, Egypt:1 city]; resources={wheat:2, iron:1}; units=[Rome:2 warriors, Egypt:1 settler].", "tool_call_id": "call_a1"},
+          {"role": "assistant", "content": "", "tool_calls": [{"id": "call_b2", "name": "get_tile", "args": "{\"x\":1,\"y\":2}"}]},
+          {"role": "tool", "content": "Tile (1,2): terrain=Grassland, owner=Rome, city=Antium.", "tool_call_id": "call_b2"}
+        ],
+        "tools": ["region_summary", "scan_grid", "get_tile"]
+      },
+      "response": {
+        "text": "Answer: Rome controls the most cities in the region, with 3.",
+        "tool_calls": [],
+        "usage": {"prompt_tokens": 742, "completion_tokens": 20, "cached_tokens": 690},
+        "latency_ms": 330
+      }
+    }
+  ],
+  "result": {"status": "correct", "expected": "Rome:3", "got": "Rome:3"}
+}
