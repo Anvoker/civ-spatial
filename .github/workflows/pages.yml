@@ -29,7 +29,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '24'
 
       # Only dependency is TypeScript; install it GLOBALLY so no node_modules/ is
       # created under viewer/ (which would otherwise be swept into the Pages
@@ -40,9 +40,10 @@ jobs:
           npm install -g typescript@5
           tsc -p tsconfig.json
 
+      # Pages must be enabled once in repo Settings -> Pages -> Source: GitHub Actions.
+      # (Auto-enablement via the workflow token is blocked: "Resource not accessible
+      # by integration".) With Pages already enabled, this step just reads the site.
       - uses: actions/configure-pages@v5
-        with:
-          enablement: true
 
       - name: Upload viewer as Pages artifact
         uses: actions/upload-pages-artifact@v3
