@@ -8,6 +8,12 @@ This project was inspired by CivRealm, SAGA, and Vox Deorum, after making the si
 
 The core is written in **Rust** (deterministic board parser, question generators, solvers, and a self-checking Oracle); the live path talks to cloud and local models over HTTP/HTTPS with prompt-caching and a concurrent runner.
 
+## Viewer
+
+**[▶ Open the live viewer in your browser→](https://anvoker.github.io/civ-spatial/)**
+
+Step through a recorded run the way the model saw it: the frozen board rendered with Freeciv sprites, the question it was asked, every tool call it made in sequence, and the answer it committed to — with per-question tokens and latency alongside. It's the fastest way to see *how* the calculator changes the model's behavior, not just that the numbers move: watch `raw` squint at the whole map versus `roster-maxops` query only the tiles it needs. There's also a function for comparing the performance between two datasets (such as two models, or the performance of the same model but on different questions, etc).
+
 ## Headline findings
 
 All results below are on **fogged Freeciv boards**, questions generated deterministically, answers scored against a computed Oracle.
