@@ -145,9 +145,11 @@ let viewInitForBoard = null;
 function loadData(d) {
     DATA = d;
     const meta = d.meta || {};
+    const modelBits = (meta.models && meta.models.length)
+        ? ` · runs: ${meta.models.join(", ")}`
+        : (meta.model ? ` · model: ${meta.model}` : "");
     $("metaLine").textContent =
-        `${d.questions.length} questions · ${Object.keys(d.boards).length} board(s)` +
-            (meta.model ? ` · model: ${meta.model}` : "");
+        `${d.questions.length} questions · ${Object.keys(d.boards).length} board(s)` + modelBits;
     viewInitForBoard = null;
     populateFilters();
     applyFilters();
@@ -159,10 +161,24 @@ function loadData(d) {
 function populateFilters() {
     if (!DATA)
         return;
-    const cats = new Set(), encs = new Set();
+    const cats = new Set(), encs = new Set(), models = new Set();
     for (const q of DATA.questions) {
         cats.add(q.category);
         encs.add(q.encoding);
+        if (q.model)
+            models.add(q.model);
+    }
+    // The run/model filter only makes sense (and only appears) when the bundle mixes runs.
+    const modelSel = document.getElementById("fModel");
+    if (modelSel) {
+        if (models.size > 1) {
+            fillSelect(modelSel, models, "All runs");
+            modelSel.hidden = false;
+        }
+        else {
+            modelSel.hidden = true;
+            modelSel.value = "";
+        }
     }
     fillSelect($("fCategory"), cats, "All categories");
     fillSelect($("fEncoding"), encs, "All encodings");
@@ -193,16 +209,17 @@ function statusBucket(status) {
 }
 // Filter the loaded question set by category / encoding / result. Shared by the replay list and the
 // Stats / Compare view (item 7) so both honor exactly the same filter logic. Empty string = "all".
-function filterQuestions(fc, fe, fs) {
+function filterQuestions(fc, fe, fs, fm = "") {
     if (!DATA)
         return [];
     return DATA.questions.filter(q => (!fc || q.category === fc) && (!fe || q.encoding === fe) &&
-        (!fs || statusBucket(q.status) === fs));
+        (!fs || statusBucket(q.status) === fs) && (!fm || q.model === fm));
 }
 function applyFilters() {
     if (!DATA)
         return;
-    filtered = filterQuestions($("fCategory").value, $("fEncoding").value, $("fStatus").value);
+    const modelSel = document.getElementById("fModel");
+    filtered = filterQuestions($("fCategory").value, $("fEncoding").value, $("fStatus").value, modelSel && !modelSel.hidden ? modelSel.value : "");
     renderList();
     if (selectedIndex >= filtered.length)
         selectedIndex = filtered.length - 1;
@@ -219,7 +236,7 @@ function renderList() {
     }
     const groups = new Map();
     for (const q of filtered) {
-        const key = `${q.category} · ${q.encoding}`;
+        const key = (q.model ? `${q.model} · ` : "") + `${q.category} · ${q.encoding}`;
         (groups.get(key) ?? groups.set(key, []).get(key)).push(q);
     }
     for (const [key, qs] of groups) {
@@ -305,9 +322,9 @@ function renderAnswer(q) {
     cmp.appendChild(bigAnswer("Correct answer", q.correct_answer || "—", "correct", false));
     el.appendChild(cmp);
     // Metadata rows.
-    const modelName = (DATA && DATA.meta && DATA.meta.model) || "";
+    const modelName = q.model || (DATA && DATA.meta && DATA.meta.model) || "";
     if (modelName)
-        el.appendChild(kv("Model", modelName));
+        el.appendChild(kv(q.model ? "Run" : "Model", modelName));
     el.appendChild(kv("Category", `${q.category}  (${q.tier})`));
     el.appendChild(kv("Encoding", q.encoding));
     if (q.options && q.options.length)
@@ -988,6 +1005,12 @@ $("fEncoding").addEventListener("change", () => { applyFilters(); if (filtered.l
     selectQuestion(0); });
 $("fStatus").addEventListener("change", () => { applyFilters(); if (filtered.length)
     selectQuestion(0); });
+{
+    const fm = document.getElementById("fModel");
+    if (fm)
+        fm.addEventListener("change", () => { applyFilters(); if (filtered.length)
+            selectQuestion(0); });
+}
 $("prevBtn").addEventListener("click", () => selectQuestion(selectedIndex - 1));
 $("nextBtn").addEventListener("click", () => selectQuestion(selectedIndex + 1));
 $("stepPrev").addEventListener("click", () => { if (stepTurn > 0) {
@@ -1255,7 +1278,8 @@ const TOOL_SPECS = [
     { name: "get_tile", group: "Perception", desc: "Exact facts of one tile (x, y).", args: [I("x"), I("y")] },
     { name: "scan", group: "Perception", desc: "Exact facts of every non-default tile in a box (max 12×12).", args: box },
     { name: "scan_grid", group: "Perception", desc: "Compact glyph grid + detail for a box, in one call.", args: box },
-    { name: "region_summary", group: "Perception", desc: "Qualitative description of the 10×10 area centered on (x, y); shifts to stay on-board at an edge.", args: [I("x"), I("y")] },
+    { name: "scan_region", group: "Perception", desc: "Per-tile TERRAIN layer of the 10×10 area centered on (x, y): one line per known tile (terrain, resource, features, borders, [city]/[unit] flag). Occupants are in the roster; shifts to stay on-board.", args: [I("x"), I("y")] },
+    { name: "region_summary", group: "Perception", desc: "EXACT occupants + resources + dominant terrain of the 10×10 area centered on (x, y); shifts to stay on-board at an edge.", args: [I("x"), I("y")] },
     { name: "list_cities", group: "Perception", desc: "Every visible city — name, owner, coords, size.", args: [] },
     { name: "list_units", group: "Perception", desc: "Every visible unit — id, type, owner, coords.", args: [] },
     // Spatial measurement
@@ -1572,16 +1596,17 @@ function setupWindowTabs(rootId) {
         });
     }
 }
-const statsSel = { L: { cat: "", enc: "", status: "" }, R: { cat: "", enc: "", status: "" } };
+const statsSel = { L: { cat: "", enc: "", status: "", model: "" }, R: { cat: "", enc: "", status: "", model: "" } };
 let statsCompare = false;
-// The category/encoding option sets present in the loaded data (mirrors populateFilters).
 function optionSets() {
-    const cats = new Set(), encs = new Set();
+    const cats = new Set(), encs = new Set(), models = new Set();
     for (const q of DATA?.questions ?? []) {
         cats.add(q.category);
         encs.add(q.encoding);
+        if (q.model)
+            models.add(q.model);
     }
-    return { cats, encs };
+    return { cats, encs, models };
 }
 function renderStats() {
     const grid = document.getElementById("statsGrid");
@@ -1607,9 +1632,13 @@ function makeStatsPanel(side, opts) {
     panel.className = "panel statspanel";
     const filt = document.createElement("div");
     filt.className = "statsfilters";
+    // The run/model select is only shown when the bundle actually mixes runs.
+    const mdl = opts.models.size > 1 ? statsSelect("model", side, opts) : null;
     const cat = statsSelect("cat", side, opts);
     const enc = statsSelect("enc", side, opts);
     const st = statsSelect("status", side, opts);
+    if (mdl)
+        filt.appendChild(mdl);
     filt.appendChild(cat);
     filt.appendChild(enc);
     filt.appendChild(st);
@@ -1618,10 +1647,12 @@ function makeStatsPanel(side, opts) {
     panel.appendChild(filt);
     panel.appendChild(results);
     const recompute = () => {
-        statsSel[side] = { cat: cat.value, enc: enc.value, status: st.value };
+        statsSel[side] = { cat: cat.value, enc: enc.value, status: st.value, model: mdl ? mdl.value : "" };
         renderStatsResults(results, statsSel[side]);
     };
     cat.onchange = enc.onchange = st.onchange = recompute;
+    if (mdl)
+        mdl.onchange = recompute;
     recompute();
     return panel;
 }
@@ -1640,6 +1671,12 @@ function statsSelect(kind, side, opts) {
             add(v, v);
         sel.value = statsSel[side].enc;
     }
+    else if (kind === "model") {
+        add("", "All runs");
+        for (const v of [...opts.models].sort())
+            add(v, v);
+        sel.value = statsSel[side].model;
+    }
     else {
         add("", "All results");
         add("correct", "Correct only");
@@ -1651,7 +1688,7 @@ function statsSelect(kind, side, opts) {
 }
 function renderStatsResults(host, sel) {
     host.innerHTML = "";
-    const qs = filterQuestions(sel.cat, sel.enc, sel.status);
+    const qs = filterQuestions(sel.cat, sel.enc, sel.status, sel.model);
     const count = document.createElement("div");
     count.className = "statscount";
     count.innerHTML = `<b>${qs.length.toLocaleString()}</b> question${qs.length === 1 ? "" : "s"} match`;

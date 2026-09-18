@@ -36,6 +36,7 @@ interface ToolCallD { name: string; args: string; region: BBox | null; }
 interface TurnD { tool_calls: ToolCallD[]; fetched_regions: BBox[]; text: string; reasoning?: string; }
 interface QuestionD {
   item_id: string; category: string; tier: string; encoding: string; board_ref: string;
+  model?: string;         // run/model label (e.g. "DeepSeek", "Haiku p1") for merged multi-run bundles
   question_text: string;
   full_prompt?: string;   // the FULL turn-0 prompt (instructions + board preamble + question)
   model_answer: string;   // the PARSED answer (`result.got`); empty when scoring couldn't parse it
@@ -56,7 +57,7 @@ interface QuestionD {
 interface ExportD {
   boards: Record<string, BoardD>;
   questions: QuestionD[];
-  meta?: { trace_dir?: string; model?: string; n_questions?: number; n_boards?: number };
+  meta?: { trace_dir?: string; model?: string; models?: string[]; n_questions?: number; n_boards?: number };
 }
 
 // ---------------------------------------------------------------------------
@@ -200,9 +201,11 @@ let viewInitForBoard: string | null = null;
 function loadData(d: ExportD) {
   DATA = d;
   const meta = d.meta || {};
+  const modelBits = (meta.models && meta.models.length)
+    ? ` · runs: ${meta.models.join(", ")}`
+    : (meta.model ? ` · model: ${meta.model}` : "");
   $("metaLine").textContent =
-    `${d.questions.length} questions · ${Object.keys(d.boards).length} board(s)` +
-    (meta.model ? ` · model: ${meta.model}` : "");
+    `${d.questions.length} questions · ${Object.keys(d.boards).length} board(s)` + modelBits;
   viewInitForBoard = null;
   populateFilters();
   applyFilters();
@@ -213,8 +216,17 @@ function loadData(d: ExportD) {
 
 function populateFilters() {
   if (!DATA) return;
-  const cats = new Set<string>(), encs = new Set<string>();
-  for (const q of DATA.questions) { cats.add(q.category); encs.add(q.encoding); }
+  const cats = new Set<string>(), encs = new Set<string>(), models = new Set<string>();
+  for (const q of DATA.questions) {
+    cats.add(q.category); encs.add(q.encoding);
+    if (q.model) models.add(q.model);
+  }
+  // The run/model filter only makes sense (and only appears) when the bundle mixes runs.
+  const modelSel = document.getElementById("fModel") as HTMLSelectElement | null;
+  if (modelSel) {
+    if (models.size > 1) { fillSelect(modelSel, models, "All runs"); modelSel.hidden = false; }
+    else { modelSel.hidden = true; modelSel.value = ""; }
+  }
   fillSelect($("fCategory") as HTMLSelectElement, cats, "All categories");
   fillSelect($("fEncoding") as HTMLSelectElement, encs, "All encodings");
 }
@@ -239,19 +251,21 @@ function statusBucket(status: string): "correct" | "wrong" | "invalid" {
 
 // Filter the loaded question set by category / encoding / result. Shared by the replay list and the
 // Stats / Compare view (item 7) so both honor exactly the same filter logic. Empty string = "all".
-function filterQuestions(fc: string, fe: string, fs: string): QuestionD[] {
+function filterQuestions(fc: string, fe: string, fs: string, fm = ""): QuestionD[] {
   if (!DATA) return [];
   return DATA.questions.filter(q =>
     (!fc || q.category === fc) && (!fe || q.encoding === fe) &&
-    (!fs || statusBucket(q.status) === fs));
+    (!fs || statusBucket(q.status) === fs) && (!fm || q.model === fm));
 }
 
 function applyFilters() {
   if (!DATA) return;
+  const modelSel = document.getElementById("fModel") as HTMLSelectElement | null;
   filtered = filterQuestions(
     ($("fCategory") as HTMLSelectElement).value,
     ($("fEncoding") as HTMLSelectElement).value,
-    ($("fStatus") as HTMLSelectElement).value);
+    ($("fStatus") as HTMLSelectElement).value,
+    modelSel && !modelSel.hidden ? modelSel.value : "");
   renderList();
   if (selectedIndex >= filtered.length) selectedIndex = filtered.length - 1;
 }
@@ -264,7 +278,7 @@ function renderList() {
   if (!filtered.length) { host.innerHTML = `<div class="empty">No questions match.</div>`; return; }
   const groups = new Map<string, QuestionD[]>();
   for (const q of filtered) {
-    const key = `${q.category} · ${q.encoding}`;
+    const key = (q.model ? `${q.model} · ` : "") + `${q.category} · ${q.encoding}`;
     (groups.get(key) ?? groups.set(key, []).get(key)!).push(q);
   }
   for (const [key, qs] of groups) {
@@ -353,8 +367,8 @@ function renderAnswer(q: QuestionD) {
   el.appendChild(cmp);
 
   // Metadata rows.
-  const modelName = (DATA && DATA.meta && DATA.meta.model) || "";
-  if (modelName) el.appendChild(kv("Model", modelName));
+  const modelName = q.model || (DATA && DATA.meta && DATA.meta.model) || "";
+  if (modelName) el.appendChild(kv(q.model ? "Run" : "Model", modelName));
   el.appendChild(kv("Category", `${q.category}  (${q.tier})`));
   el.appendChild(kv("Encoding", q.encoding));
   if (q.options && q.options.length) el.appendChild(kv("Options", q.options.join(" | ")));
@@ -887,6 +901,10 @@ canvas.addEventListener("wheel", (e) => {
 $("fCategory").addEventListener("change", () => { applyFilters(); if (filtered.length) selectQuestion(0); });
 $("fEncoding").addEventListener("change", () => { applyFilters(); if (filtered.length) selectQuestion(0); });
 $("fStatus").addEventListener("change", () => { applyFilters(); if (filtered.length) selectQuestion(0); });
+{
+  const fm = document.getElementById("fModel");
+  if (fm) fm.addEventListener("change", () => { applyFilters(); if (filtered.length) selectQuestion(0); });
+}
 $("prevBtn").addEventListener("click", () => selectQuestion(selectedIndex - 1));
 $("nextBtn").addEventListener("click", () => selectQuestion(selectedIndex + 1));
 $("stepPrev").addEventListener("click", () => { if (stepTurn > 0) { stepTurn--; updateStepperBody(); } });
@@ -1361,15 +1379,16 @@ function setupWindowTabs(rootId: string) {
 // Reuses the replay filter logic (filterQuestions) and the same category/encoding/result dimensions.
 // ---------------------------------------------------------------------------
 type StatsSide = "L" | "R";
-interface StatsSel { cat: string; enc: string; status: string; }
-const statsSel: Record<StatsSide, StatsSel> = { L: { cat: "", enc: "", status: "" }, R: { cat: "", enc: "", status: "" } };
+interface StatsSel { cat: string; enc: string; status: string; model: string; }
+const statsSel: Record<StatsSide, StatsSel> = { L: { cat: "", enc: "", status: "", model: "" }, R: { cat: "", enc: "", status: "", model: "" } };
 let statsCompare = false;
 
-// The category/encoding option sets present in the loaded data (mirrors populateFilters).
-function optionSets(): { cats: Set<string>; encs: Set<string> } {
-  const cats = new Set<string>(), encs = new Set<string>();
-  for (const q of DATA?.questions ?? []) { cats.add(q.category); encs.add(q.encoding); }
-  return { cats, encs };
+// The category/encoding/model option sets present in the loaded data (mirrors populateFilters).
+type OptSets = { cats: Set<string>; encs: Set<string>; models: Set<string> };
+function optionSets(): OptSets {
+  const cats = new Set<string>(), encs = new Set<string>(), models = new Set<string>();
+  for (const q of DATA?.questions ?? []) { cats.add(q.category); encs.add(q.encoding); if (q.model) models.add(q.model); }
+  return { cats, encs, models };
 }
 
 function renderStats() {
@@ -1385,30 +1404,35 @@ function renderStats() {
 }
 
 // One filter combo + its aggregate results. Selections persist in statsSel across compare toggles.
-function makeStatsPanel(side: StatsSide, opts: { cats: Set<string>; encs: Set<string> }): HTMLElement {
+function makeStatsPanel(side: StatsSide, opts: OptSets): HTMLElement {
   const panel = document.createElement("div"); panel.className = "panel statspanel";
   const filt = document.createElement("div"); filt.className = "statsfilters";
+  // The run/model select is only shown when the bundle actually mixes runs.
+  const mdl = opts.models.size > 1 ? statsSelect("model", side, opts) : null;
   const cat = statsSelect("cat", side, opts);
   const enc = statsSelect("enc", side, opts);
   const st = statsSelect("status", side, opts);
+  if (mdl) filt.appendChild(mdl);
   filt.appendChild(cat); filt.appendChild(enc); filt.appendChild(st);
   const results = document.createElement("div"); results.className = "statsresults";
   panel.appendChild(filt); panel.appendChild(results);
   const recompute = () => {
-    statsSel[side] = { cat: cat.value, enc: enc.value, status: st.value };
+    statsSel[side] = { cat: cat.value, enc: enc.value, status: st.value, model: mdl ? mdl.value : "" };
     renderStatsResults(results, statsSel[side]);
   };
   cat.onchange = enc.onchange = st.onchange = recompute;
+  if (mdl) mdl.onchange = recompute;
   recompute();
   return panel;
 }
 
-function statsSelect(kind: "cat" | "enc" | "status", side: StatsSide,
-                     opts: { cats: Set<string>; encs: Set<string> }): HTMLSelectElement {
+function statsSelect(kind: "cat" | "enc" | "status" | "model", side: StatsSide,
+                     opts: OptSets): HTMLSelectElement {
   const sel = document.createElement("select");
   const add = (val: string, label: string) => { const o = document.createElement("option"); o.value = val; o.textContent = label; sel.appendChild(o); };
   if (kind === "cat") { add("", "All categories"); for (const v of [...opts.cats].sort()) add(v, v); sel.value = statsSel[side].cat; }
   else if (kind === "enc") { add("", "All encodings"); for (const v of [...opts.encs].sort()) add(v, v); sel.value = statsSel[side].enc; }
+  else if (kind === "model") { add("", "All runs"); for (const v of [...opts.models].sort()) add(v, v); sel.value = statsSel[side].model; }
   else {
     add("", "All results"); add("correct", "Correct only"); add("wrong", "Wrong only"); add("invalid", "Invalid only");
     sel.value = statsSel[side].status;
@@ -1418,7 +1442,7 @@ function statsSelect(kind: "cat" | "enc" | "status", side: StatsSide,
 
 function renderStatsResults(host: HTMLElement, sel: StatsSel) {
   host.innerHTML = "";
-  const qs = filterQuestions(sel.cat, sel.enc, sel.status);
+  const qs = filterQuestions(sel.cat, sel.enc, sel.status, sel.model);
   const count = document.createElement("div"); count.className = "statscount";
   count.innerHTML = `<b>${qs.length.toLocaleString()}</b> question${qs.length === 1 ? "" : "s"} match`;
   host.appendChild(count);
