@@ -43,7 +43,23 @@ Accuracy:
 | `raw-maxops` | 0.948 | 0.880 |
 | `roster-maxops` | 0.958 | 0.912 |
 
-Cost frontier (tokens/answer, DeepSeek): `roster-maxops` **146k** vs `raw-maxops` **367k** (2.5× overall, 3.7× on the large board) at tied accuracy.
+Token usage (tokens per answer):
+
+| surface | DeepSeek V4 | Haiku 4.5 |
+|---|---|---|
+| `raw` | 40k | 40k |
+| `raw-maxops` | 340k | 161k |
+| `roster-maxops` | 143k | 78k |
+
+Cost per 1,000 answers, at list prices (DeepSeek `$0.04984`/`$0.09968`, Haiku `$1`/`$5` per 1M in/out):
+
+| surface | DeepSeek V4 | Haiku 4.5 |
+|---|---|---|
+| `raw` | ~$2 | ~$44 |
+| `raw-maxops` | ~$17 | ~$168 |
+| `roster-maxops` | ~$7 | ~$85 |
+
+The query loop is **~2.4× cheaper than the full board dump at tied accuracy** (up to 3.7× on the large board — `raw-maxops` re-sends the whole board every tool turn, so its cost grows with board size). These are no-cache list prices; the runs cached the board (~97% hit), so real spend was several-fold lower (e.g. `roster-maxops` ≈ $1.8/1k on DeepSeek).
 
 Full writeups: [`analysis/findings-3arm-clean-run.md`](analysis/findings-3arm-clean-run.md) (the DeepSeek headline), [`analysis/findings-subs-haiku.md`](analysis/findings-subs-haiku.md) (cross-model), [`analysis/findings-cfvacate-tooltrap.md`](analysis/findings-cfvacate-tooltrap.md) (the tool-trap), [`analysis/findings-tool-parity.md`](analysis/findings-tool-parity.md) (tool–task fit: only the *matching* operator helps), and [`analysis/reasoning-frontier-vs-luck.md`](analysis/reasoning-frontier-vs-luck.md) (the ceiling theorem). The pre-registration is in [`analysis/run-preregistration-3arm-2026-08-17.md`](analysis/run-preregistration-3arm-2026-08-17.md).
 
